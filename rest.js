@@ -326,11 +326,68 @@ var indicatorConfig = new Array({ postfix: "one", values: [1]},
 
 
 
-var query = "select * ,"//(SELECT (SELECT sectorId from Sector as e WHERE  sector_id = e.id ) FROM User_Sector AS c WHERE c.User_id= scheduleUser_id) AS sectorId,"; 
-   query+=  "(SELECT CONCAT(name, '-' , displayName) FROM User AS c WHERE c.id= "+ indicatorConfig[0].postfix +".scheduleUser_id) as name, ";
-   query+=  "(SELECT (SELECT sectorId from Sector as e WHERE  sectors_id = e.id ) FROM User_Sector AS c WHERE c.User_id= "+ indicatorConfig[0].postfix +".scheduleUser_id) as sectorId, ";
-   query+=  "(SELECT (SELECT tlPinId from TLPin as e WHERE  tlPin_id = e.id ) FROM User AS c WHERE c.id= "+ indicatorConfig[0].postfix +".scheduleUser_id) as tlPinId ";
-//        " (SELECT (SELECT tlPinId from TLPin as e WHERE  tlPin_id = e.id ) FROM User AS c WHERE c.id= scheduleUser_id) AS tlPinId ,"+
+// SELECT User.id AS scheduleUser_id , CONCAT(NAME, '-' , displayName) AS NAME , 
+// (SELECT (SELECT sectorId FROM Sector AS e WHERE  sectors_id = e.id ) FROM User_Sector AS c WHERE c.User_id= scheduleUser_id) AS sectorId,
+// (SELECT (SELECT tlPinId FROM TLPin AS e WHERE  tlPin_id = e.id ) FROM `User` AS c WHERE c.id= scheduleUser_id) AS tlPinId,
+// indicator_1.* 
+// FROM `User`
+// LEFT JOIN
+// (
+// select 
+// (IF(rank_one,rank_one,0)+ IF(rank_six,rank_six,0)+ IF(rank_tnine,rank_tnine,0)+ IF(rank_thirty,rank_thirty,0)+ IF(rank_thrity1,rank_thrity1,0)+ IF(rank_thrity2,rank_thrity2,0)+ IF(rank_anc,rank_anc,0)+ IF(rank_vs29,rank_vs29,0)+ IF(rank_vs43,rank_vs43,0) ) / (IF(rank_one,1,0)+ IF(rank_six,1,0)+ IF(rank_tnine,1,0)+ IF(rank_thirty,1,0)+ IF(rank_thrity1,1,0)+ IF(rank_thrity2,1,0)+ IF(rank_anc,1,0)+ IF(rank_vs29,1,0)+ IF(rank_vs43,1,0) ) AS cummulate_score_1,
+
+// IF(rank_one,rank_one,0)+ IF(rank_six,rank_six,0)+ IF(rank_tnine,rank_tnine,0)+ IF(rank_thirty,rank_thirty,0)+ IF(rank_thrity1,rank_thrity1,0)+ IF(rank_thrity2,rank_thrity2,0)+ IF(rank_anc,rank_anc,0)+ IF(rank_vs29,rank_vs29,0)+ IF(rank_vs43,rank_vs43,0) AS sum_rank_1,
+
+// IF(rank_one,1,0)+ IF(rank_six,1,0)+ IF(rank_tnine,1,0)+ IF(rank_thirty,1,0)+ IF(rank_thrity1,1,0)+ IF(rank_thrity2,1,0)+ IF(rank_anc,1,0)+ IF(rank_vs29,1,0)+ IF(rank_vs43,1,0) AS sum_rank_used_count_1,
+
+// ======
+
+// ) indicator_1  
+
+// ON indicator_1.scheduleUser_id =  User.id
+// WHERE role_id=5
+
+
+var query = "SELECT User.id AS scheduleUser_id , CONCAT(NAME, '-' , displayName) AS name ," +
+            "(SELECT (SELECT sectorId FROM Sector AS e WHERE  sectors_id = e.id ) FROM User_Sector AS c WHERE c.User_id= scheduleUser_id) AS sectorId,"+
+            "(SELECT (SELECT tlPinId FROM TLPin AS e WHERE  tlPin_id = e.id ) FROM `User` AS c WHERE c.id= scheduleUser_id) AS tlPinId,"+
+            "indicator_1.*  , indicator_2.*  FROM `User` LEFT JOIN (";
+
+
+var sum_rank_1 = "";
+
+for(var i=0; i<indicatorConfig.length; i++){
+
+  sum_rank_1+= "IF(percentage_"+ indicatorConfig[i].postfix +  ",rank_"+ indicatorConfig[i].postfix + ",0)";
+  if(i!=indicatorConfig.length-1){
+    sum_rank_1+="+";
+  }
+
+}
+
+
+var sum_rank_used_count_1 = "";
+
+for(var i=0; i<indicatorConfig.length; i++){
+
+  sum_rank_used_count_1+= "IF(percentage_"+ indicatorConfig[i].postfix +  ",1,0)";
+  if(i!=indicatorConfig.length-1){
+    sum_rank_used_count_1+="+";
+  }
+
+}
+
+
+query+= "select ROUND(("+ sum_rank_1 +")/("+ sum_rank_used_count_1 +"),2) as cummulate_score_1 ,";
+query+=  sum_rank_1 +" as sum_rank_1 ,";
+query+=  sum_rank_used_count_1 +" as sum_rank_used_count_1, ";
+query+= indicatorConfig[0].postfix+ ".scheduleUser_id AS scheduleUser_id"
+
+//(SELECT (SELECT sectorId from Sector as e WHERE  sector_id = e.id ) FROM User_Sector AS c WHERE c.User_id= scheduleUser_id) AS sectorId,"; 
+//   query+=  "(SELECT CONCAT(name, '-' , displayName) FROM User AS c WHERE c.id= "+ indicatorConfig[0].postfix +".scheduleUser_id) as name, ";
+//   query+=  "(SELECT (SELECT sectorId from Sector as e WHERE  sectors_id = e.id ) FROM User_Sector AS c WHERE c.User_id= "+ indicatorConfig[0].postfix +".scheduleUser_id) as sectorId, ";
+//   query+=  "(SELECT (SELECT tlPinId from TLPin as e WHERE  tlPin_id = e.id ) FROM User AS c WHERE c.id= "+ indicatorConfig[0].postfix +".scheduleUser_id) as tlPinId ";
+
 
 
 for(var i=0; i<indicatorConfig.length; i++){
@@ -381,6 +438,29 @@ if(i!=indicatorConfig.length-1) {
 }
 
 
+
+query+= ") indicator_1 "+
+        " ON indicator_1.scheduleUser_id =  User.id ";
+
+        
+
+query+= " JOIN ("+ 
+  " SELECT CONCAT(sender_id, '_' , form_id) AS sender_form, sender_id, form_id, endTime,startTime,"+ 
+  " ROUND(AVG((endTime-startTime)),2 ) avgCompletionTime_1,"+
+  " ROUND(STDDEV(endTime-startTime),2) stddevCompletionTime_1"+
+  " FROM `Data`"+
+  " WHERE form_id IN ("+
+  " SELECT form_id FROM `UnitData`"+
+  " WHERE titleVar = 'FDCENSTAT' AND valueVar = 1 )"+ ////CONFIG HERE
+  " GROUP BY CONCAT(sender_id, '_' , form_id) ";
+
+
+
+
+query+= ") indicator_2 "  
+
+ query+= " ON indicator_1.scheduleUser_id =  indicator_2.sender_id "+
+        " WHERE role_id=5" // FD ==> 5 and TLI => 4
 
 
 
