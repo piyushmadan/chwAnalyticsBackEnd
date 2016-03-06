@@ -257,118 +257,156 @@ var query =  "SELECT  CONCAT(DATE(created_at), '_', titleVar, '_', valueVar ) AS
           }); 
       });
 
-// Get ranking based on status percentage - http://fellowtuts.com/mysql/query-to-obtain-rank-function-in-mysql/
-// SELECT scheduleUser_id,  percentage, rank FROM
-// (SELECT scheduleUser_id,  percentage,
-// @curRank := IF(@prevRank = percentage, @curRank, @incRank) AS rank, 
-// @incRank := @incRank + 1, 
-// @prevRank := percentage
-// FROM (
-// SELECT  scheduleUser_id, ((SUM(STATUS= 'DONE')/ (SUM(STATUS= 'ACTIVE')+ SUM(STATUS= 'DONE')))*100) AS percentage
-// FROM `Schedule`
-// GROUP BY scheduleUser_id
-// ) a , (
-// SELECT @curRank :=0, @prevRank := NULL, @incRank := 1
-// ) r 
-// ORDER BY percentage) s
+//Get array of values from an objects
+//http://stackoverflow.com/questions/19590865/from-an-array-of-objects-extract-value-of-a-property-as-array
+//Calculate rank of values extracted from object
+//http://stackoverflow.com/questions/14834571/ranking-array-elements
+  // Indicator 1 - GET 
+  router.get("/CHWScoringIndicator1",function(req,res){
+
+      console.log(req.query)
+
+      var group_by_attribute = req.query.groupBy || " YEAR(created_at), MONTH(created_at), DATE(created_at)";
+
+      var group_by_attributeMapping = " DATE_FORMAT(created_at, '%Y-%m-%d') "; //" DATE(created_at)"; //" (SELECT CONCAT(jweek_id, ' (' , SUBSTR(fromDate,1,10) , ' to ' , SUBSTR(toDate,1,10) , ')' ) FROM JWeek AS c WHERE c.id= jweek_id)"
+
+      var startDate = req.query.startDate || "2015-01-01" ;
+
+      var endDate = req.query.endDate || "2017-01-01" ;
 
 
 
-// Find Percentage for different 
-// SELECT scheduleUser_id, 
-// sum(percentage_1) AS sum_percentage_1,
-// sum(percentage_6) AS sum_percentage_6,
-// sum(percentage_29) AS sum_percentage_29,
-// sum(percentage_30) AS sum_percentage_30,
-// sum(percentage_31) AS sum_percentage_31,
-// sum(percentage_32) AS sum_percentage_32,
-// sum(percentage_anc) AS sum_percentage_anc,
-// sum(percentage_vs29) AS sum_percentage_vs29,
-// sum(percentage_vs43) AS sum_percentage_vs43
-// FROM 
-// (
-// SELECT 
-// #submission_By_User_and_form.*,
-// scheduleUser_id,
-// concat_user_formId, 
-// IF(`formToGenerate_id`=1,percentage,NULL) AS percentage_1,
-// IF(`formToGenerate_id`=6,percentage,NULL) AS percentage_6,
-// IF(`formToGenerate_id`=29,percentage,NULL) AS percentage_29,
-// IF(`formToGenerate_id`=30,percentage,NULL) AS percentage_30,
-// IF(`formToGenerate_id`=31,percentage,NULL) AS percentage_31,
-// IF(`formToGenerate_id`=32,percentage,NULL) AS percentage_32,
-// IF(`formToGenerate_id` IN (35, 36, 37, 38), percentage,NULL) AS percentage_anc,
-// IF(`formToGenerate_id` IN (40, 42, 44), percentage,NULL) AS percentage_vs29,
-// IF(`formToGenerate_id` IN (41, 43, 45), percentage,NULL) AS percentage_vs43
-// FROM 
-// (
-// SELECT  CONCAT(scheduleUser_id, "_", formToGenerate_id) AS concat_user_formId, Schedule.scheduleUser_id, formToGenerate_id,  ((SUM(STATUS= 'DONE')/ (SUM(STATUS= 'ACTIVE')+ SUM(STATUS= 'DONE')))*100) AS percentage 
-// FROM `Schedule`
-// GROUP BY CONCAT(scheduleUser_id, formToGenerate_id)
-// ) submission_By_User_and_form
-// )
-//  submission_By_User_and_form_and_percentage
-// GROUP BY scheduleUser_id
+    switch(req.query.aggregator) {
+        default:
+          var disaggregation =  "SUM(titleVar = 'FDCENCONSENT' AND valueVar=1) AS FDCENCONSENT_1,"+
+                                "SUM(titleVar = 'FDELIGIBLE' AND valueVar=1) AS FDELIGIBLE_1,"+    
+                                "SUM(titleVar = 'FDBNFSTS' AND valueVar=0) AS FDBNFSTS_0,"+    
+                                "SUM(titleVar = 'FDPREGSTS' AND valueVar=1) AS FDPREGSTS_1,"+    
+                                "SUM(titleVar = 'FDPSRCONSENT' AND valueVar=1) AS FDPSRCONSENT_1,"+    
+                                "SUM(titleVar = 'FDBNFLB') AS FDBNFLB";   
+                               // "((SUM(STATUS= 'DONE')/ (SUM(STATUS= 'ACTIVE')+ SUM(STATUS= 'DONE')))*100) AS percentage"; 
+    }
 
-// Scheduling with highest given rank 1 and zero has NULL 
-// SELECT scheduleUser_id,  percentage, IF(percentage=NULL, NULL, rank) AS rank  FROM
-// (SELECT scheduleUser_id,  percentage,
-// @curRank := IF(@prevRank = percentage, @curRank, @incRank) AS rank, 
-// @incRank := @incRank + 1, 
-// @prevRank := percentage
-// FROM (
-// SELECT  scheduleUser_id, ((SUM(STATUS= 'DONE')/ (SUM(STATUS= 'ACTIVE')+ SUM(STATUS= 'DONE')))*100) AS percentage
-// FROM `Schedule`
-// GROUP BY scheduleUser_id
-// ) a , (
-// SELECT @curRank :=0, @prevRank := NULL, @incRank := 1
-// ) r 
-// ORDER BY percentage DESC) s
+    var titleVar = "('FDCENCONSENT', 'FDELIGIBLE','FDBNFSTS', 'FDPSRCONSENT', 'FDPREGSTS', 'FDBNFLB' )";
+
+
+// QUICKER QUERY TO CALCULATE DATEWISE and titleVar 
+var query =  "SELECT  CONCAT(DATE(created_at), '_', titleVar, '_', valueVar ) AS date_titleVar_Value,"+
+              "CONCAT(titleVar, '_', valueVar ) AS titleVar_Value,"+
+              "DATE_FORMAT(created_at, '%Y-%m-%d')  AS DATE, count(*) AS count "+
+              "FROM `UnitData`"+
+              "WHERE titleVar IN " + titleVar+
+              "GROUP BY  CONCAT(DATE(created_at), titleVar, valueVar )"+
+              " HAVING date>=\""+ startDate + "\" and date <=\""+ endDate + "\"" ;
+
+
+var indicatorConfig = new Array({ postfix: "one", values: [1]},
+                        { postfix: "six", values: [6]},
+                        { postfix: "tnine", values: [29]},
+                        { postfix: "thirty", values: [30]},
+                        { postfix: "thrity1", values: [31]},
+                        { postfix: "thrity2", values: [32]},
+                        { postfix: "anc", values: [35,36,37,38]},
+                        { postfix: "vs29", values: [40,42,44]},
+                        { postfix: "vs43", values: [41,43,45]}
+                        )
 
 
 
 
-// Gives table before rankings
-// SELECT submission_By_User_and_form_and_percentage_ranking.*
-// FROM
-// ( # submission_By_User_and_form_and_percentage starts
-// SELECT scheduleUser_id, 
-// sum(percentage_1) AS sum_percentage_1,
-// sum(percentage_6) AS sum_percentage_6,
-// sum(percentage_29) AS sum_percentage_29,
-// sum(percentage_30) AS sum_percentage_30,
-// sum(percentage_31) AS sum_percentage_31,
-// sum(percentage_32) AS sum_percentage_32,
-// sum(percentage_anc) AS sum_percentage_anc,
-// sum(percentage_vs29) AS sum_percentage_vs29,
-// sum(percentage_vs43) AS sum_percentage_vs43
-// FROM 
-// ( # submission_By_User_and_form table starts
-// SELECT 
-// #submission_By_User_and_form.*,
-// scheduleUser_id,
-// concat_user_formId, 
-// IF(`formToGenerate_id`=1,percentage,NULL) AS percentage_1,
-// IF(`formToGenerate_id`=6,percentage,NULL) AS percentage_6,
-// IF(`formToGenerate_id`=29,percentage,NULL) AS percentage_29,
-// IF(`formToGenerate_id`=30,percentage,NULL) AS percentage_30,
-// IF(`formToGenerate_id`=31,percentage,NULL) AS percentage_31,
-// IF(`formToGenerate_id`=32,percentage,NULL) AS percentage_32,
-// IF(`formToGenerate_id` IN (35, 36, 37, 38), percentage,NULL) AS percentage_anc,
-// IF(`formToGenerate_id` IN (40, 42, 44), percentage,NULL) AS percentage_vs29,
-// IF(`formToGenerate_id` IN (41, 43, 45), percentage,NULL) AS percentage_vs43
-// FROM 
-// (
-// SELECT  CONCAT(scheduleUser_id, "_", formToGenerate_id) AS concat_user_formId, Schedule.scheduleUser_id, formToGenerate_id,  ((SUM(STATUS= 'DONE')/ (SUM(STATUS= 'ACTIVE')+ SUM(STATUS= 'DONE')))*100) AS percentage 
-// FROM `Schedule`
-// GROUP BY CONCAT(scheduleUser_id, formToGenerate_id)
-// ) submission_By_User_and_form
 
-// )
-//  submission_By_User_and_form_and_percentage
-// GROUP BY scheduleUser_id
+// SELECT
+// rank_one , rank_six , rank_tnine , rank_thirty, 
+// IF(rank_one, rank_one, 0) + IF(rank_six, rank_six, 0) + IF(rank_tnine, rank_tnine, 0) + IF(rank_thirty, rank_thirty, 0) AS cummulative_rank,
+// IF(rank_one, 1, 0) + IF(rank_six, 1, 0) + IF(rank_tnine, 1, 0) + IF(rank_thirty, 1, 0) AS total_rank_used,
 
-// ) submission_By_User_and_form_and_percentage_ranking
+// (IF(rank_one, rank_one, 0) + IF(rank_six, rank_six, 0) + IF(rank_tnine, rank_tnine, 0) + IF(rank_thirty, rank_thirty, 0) ) /
+// (IF(rank_one, 1, 0) + IF(rank_six, 1, 0) + IF(rank_tnine, 1, 0) + IF(rank_thirty, 1, 0)) AS FINAL_RANK_BASED_SCORE
+
+
+
+
+var query = "select * ,"//(SELECT (SELECT sectorId from Sector as e WHERE  sector_id = e.id ) FROM User_Sector AS c WHERE c.User_id= scheduleUser_id) AS sectorId,"; 
+   query+=  "(SELECT CONCAT(name, '-' , displayName) FROM User AS c WHERE c.id= "+ indicatorConfig[0].postfix +".scheduleUser_id) as name, ";
+   query+=  "(SELECT (SELECT sectorId from Sector as e WHERE  sectors_id = e.id ) FROM User_Sector AS c WHERE c.User_id= "+ indicatorConfig[0].postfix +".scheduleUser_id) as sectorId, ";
+   query+=  "(SELECT (SELECT tlPinId from TLPin as e WHERE  tlPin_id = e.id ) FROM User AS c WHERE c.id= "+ indicatorConfig[0].postfix +".scheduleUser_id) as tlPinId ";
+//        " (SELECT (SELECT tlPinId from TLPin as e WHERE  tlPin_id = e.id ) FROM User AS c WHERE c.id= scheduleUser_id) AS tlPinId ,"+
+
+
+for(var i=0; i<indicatorConfig.length; i++){
+
+query+= ", IF(percentage_"+ indicatorConfig[i].postfix + ", CONCAT(rank_" + indicatorConfig[i].postfix + ", ' (' , percentage_" + indicatorConfig[i].postfix + ", '%)' )   , NULL) as rank_percentage_"+ indicatorConfig[i].postfix
+
+}
+
+query+= " from ";
+
+
+for(var i=0; i<indicatorConfig.length; i++){
+  query+= "( SELECT IF(percentage>=0,rank,NULL) AS rank_" + indicatorConfig[i].postfix +  " , percentage AS percentage_" + indicatorConfig[i].postfix  + ",  "+
+  "s.scheduleUser_id AS scheduleUser_id  FROM (SELECT    r.*, @curRank := IF(@prevRank = percentage, @curRank, @incRank) AS rank, @incRank := @incRank + 1, @prevRank := percentage,a.* FROM (SELECT * ,"+ 
+  "sum_percentage_" + indicatorConfig[i].postfix +  " AS percentage "+
+  "FROM(SELECT scheduleUser_id, "+
+  "sum(percentage_" + indicatorConfig[i].postfix +  ") AS sum_percentage_" + indicatorConfig[i].postfix +  " "+
+  "FROM (SELECT scheduleUser_id, IF(`formToGenerate_id` IN (";
+
+    query+=indicatorConfig[i].values
+
+    query+="),percentage,NULL) AS percentage_"+ indicatorConfig[i].postfix ; 
+    
+  // jweekId is below...
+
+    query+=" FROM (SELECT  CONCAT(scheduleUser_id, '_', formToGenerate_id) AS concat_user_formId, Schedule.scheduleUser_id, formToGenerate_id,  ((SUM(STATUS= 'DONE')/ (SUM(STATUS= 'ACTIVE')+ SUM(STATUS= 'DONE')))*100) AS percentage FROM `Schedule` WHERE jweek_id>0 AND jweek_id<1000000 GROUP BY CONCAT(scheduleUser_id, formToGenerate_id)) submission_By_User_and_form)submission_By_User_and_form_and_percentage GROUP BY scheduleUser_id) submission_By_User_and_form_and_percentage_ranking) a , (SELECT @curRank :=0, @prevRank := NULL, @incRank := 1) r ORDER BY percentage DESC) s"+
+              ") " + indicatorConfig[i].postfix
+
+  if(i!=indicatorConfig.length-1){
+    query+=" JOIN "
+  }
+
+
+}
+
+
+query += " WHERE "
+
+
+for(var i=1; i<indicatorConfig.length; i++){
+  query+= indicatorConfig[0].postfix + ".scheduleUser_id =" +  indicatorConfig[i].postfix + ".scheduleUser_id" 
+
+if(i!=indicatorConfig.length-1) {
+  query+= " AND "
+}
+
+
+}
+
+
+
+
+
+  //    var query = "SELECT "+ group_by_attributeMapping + " as date , " + 
+   //               disaggregation +  " FROM `UnitData` " +
+    //                " GROUP BY " +  group_by_attribute + " HAVING date>=\""+ startDate + "\" and date <=\""+ endDate + "\"" ;
+
+      console.log(query);
+
+      var table = ["Schedule"];
+      query = mysql.format(query,table); 
+      connection.query(query,function(err,rows){
+            if(err) {
+              console.log(err);
+               res.json({"Error" : true, "Message" : "Error executing MySQL query"});
+            } else {
+                res.json({"Error" : false, 
+                          "Message" : "Success", 
+                          "ver": 0.1, 
+                          "result" : rows, 
+                 
+                        });
+            }
+          }); 
+      });
+
 
 
 
