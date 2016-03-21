@@ -312,6 +312,28 @@ var indicatorConfig = new Array({ postfix: "one", values: [1]},
                         )
 
 
+// var indicator2Config = new Array(   { postfix: "census", values: [ { titleVar : "FDCENSTAT", valueVar: 1},
+//                                                                 { titleVar : "FDELIGIBLE", valueVar: 1}] },
+//                                     { postfix: "psrf", values: [ { titleVar : "FDPSRSTS", valueVar: 1},
+//                                                                 { titleVar : "FDPSRPREGSTS", valueVar: 1}]}
+//                        );
+
+
+
+var indicator2Config = new Array(   { postfix: "census", values: [ { titleVar : "FDCENSTAT", valueVar: 1},
+                                                                { titleVar : "FDELIGIBLE", valueVar: 1}] },
+                                    { postfix: "psrf", values: [ { titleVar : "FDPSRSTS", valueVar: 1},
+                                                                { titleVar : "FDPSRPREGSTS", valueVar: 1}]},
+                                 { postfix: "pvf", values: [ { titleVar : "FDBNFSTS", valueVar: 1} ]},
+                                 { postfix: "rest", values: [ { titleVar : "FDPSRSTS", valueVar: 1},
+                                                                { titleVar : "TLANC1REMSTS", valueVar: 1},
+                                                                { titleVar : "TLANC2REMSTS", valueVar: 1},
+                                                                { titleVar : "TLANC3REMSTS", valueVar: 1},
+                                                                { titleVar : "TLANC4REMSTS", valueVar: 1},
+                                                                { titleVar : "TLPNCSTS", valueVar: 1},
+                                                                { titleVar : "SES_STATUS", valueVar: 1},
+                                                               ]}
+                       );
 
 
 
@@ -350,8 +372,8 @@ var indicatorConfig = new Array({ postfix: "one", values: [1]},
 
 var query = "SELECT User.id AS scheduleUser_id , CONCAT(NAME, '-' , displayName) AS name ," +
             "(SELECT (SELECT sectorId FROM Sector AS e WHERE  sectors_id = e.id ) FROM User_Sector AS c WHERE c.User_id= scheduleUser_id) AS sectorId,"+
-            "(SELECT (SELECT tlPinId FROM TLPin AS e WHERE  tlPin_id = e.id ) FROM `User` AS c WHERE c.id= scheduleUser_id) AS tlPinId,"+
-            "indicator_1.*  , indicator_2.*  FROM `User` LEFT JOIN (";
+            "(SELECT (SELECT tlPinId FROM TLPin AS e WHERE  tlPin_id = e.id ) FROM `User` AS c WHERE c.id= scheduleUser_id) AS tlPinId";
+     query +=",indicator_1.*  , indicator_2.*  FROM `User` LEFT JOIN (";
 
 
 var sum_rank_1 = "";
@@ -442,24 +464,105 @@ if(i!=indicatorConfig.length-1) {
 query+= ") indicator_1 "+
         " ON indicator_1.scheduleUser_id =  User.id ";
 
-        
 
-query+= " JOIN ("+ 
-  " SELECT CONCAT(sender_id, '_' , form_id) AS sender_form, sender_id, form_id, endTime,startTime,"+ 
-  " ROUND(AVG((endTime-startTime)),2 ) avgCompletionTime_1,"+
-  " ROUND(STDDEV(endTime-startTime),2) stddevCompletionTime_1"+
-  " FROM `Data`"+
-  " WHERE form_id IN ("+
-  " SELECT form_id FROM `UnitData`"+
-  " WHERE titleVar = 'FDCENSTAT' AND valueVar = 1 )"+ ////CONFIG HERE
-  " GROUP BY CONCAT(sender_id, '_' , form_id) ";
 
+query+= " LEFT JOIN ("; 
+
+
+// Indicator 2 - start
+
+
+
+/* Census Form:  Met & Eligible - FDCENSTAT=1 and FDELIGIBLE=1
+PSRF:  Met & Pregnant - FDPSRSTS=1 and FDPSRPREGSTS=1
+PVF: Live birth - FDBNFSTS=4
+
+All other forms among Mets
+ANC1: TLANC1REMSTS=1
+ANC2: TLANC2REMSTS=1
+ANC3: TLANC3REMSTS=1
+ANC4: TLANC4REMSTS=1
+PNC: TLPNCSTS=1
+SES: SES_STATUS=1
+VS29: (any)
+VS43: (any */
+
+
+
+
+//  query+= " select * ";
+ // query+= indicator2Config[0].postfix+ ".sender_id AS sender_id" + ",";
+ query+= " select  sender_id_user AS sender_id, ";
+
+
+for (j=0; j<indicator2Config.length; j++){
+
+query+= " rank_2_" + indicator2Config[j].postfix + " , avgCompletionTime_2_" + indicator2Config[j].postfix + " , deviationFromMean_" + indicator2Config[j].postfix + "  "  ;
+
+      if(j!=indicator2Config.length-1){
+          query+= " , "; 
+      }
+
+
+
+}
+
+
+  query+= " from (select id as sender_id_user from `User` where role_id=5) `User` LEFT JOIN ";
+
+
+
+for (j=0; j<indicator2Config.length; j++){
+  var disaggregation = "";
+
+  for (k=0; k<indicator2Config[j].values.length; k++){
+
+      disaggregation+= " (titleVar = '"+ indicator2Config[j].values[k].titleVar + "' AND valueVar = "+ indicator2Config[j].values[k].valueVar + ") ";
+
+      if(k!=indicator2Config[j].values.length-1){
+          disaggregation+= " OR ";        
+      }
+
+    }
+      query+= " ( " 
+
+
+// TODO: ADD JWEEK RANGE
+
+      query+=    " SELECT IF(avgCompletionTime>=0,rank,NULL) AS rank_2_"+  indicator2Config[j].postfix +  ", avgCompletionTime AS avgCompletionTime_2_" + indicator2Config[j].postfix +
+          " , deviationFromMean AS deviationFromMean_"+ indicator2Config[j].postfix + 
+          ",s.sender_id "+//" AS  sender_id_" + indicator2Config[j].postfix +
+          " FROM (SELECT    r.*, @curRank := IF(@prevRank = avgCompletionTime, @curRank, @incRank) AS rank, "+
+          " @incRank := @incRank + 1, @prevRank := avgCompletionTime,a.* FROM ("+
+          " SELECT CONCAT(sender_id, '_' , form_id) AS sender_form, sender_id, form_id, endTime,startTime, ROUND(AVG((endTime-startTime)),2 ) avgCompletionTime, "+
+          " ROUND(STDDEV(endTime-startTime),2) stddevCompletionTime "+
+          " , 2 as deviationFromMean  "+ // removed following lines as deviationFrom Mean is not working the they need to be reworked
+//          " ,ROUND(AVG((endTime-startTime)) - (SELECT AVG((endTime-startTime)) FROM `Data` WHERE form_id IN (SELECT form_id FROM `UnitData`"+
+//          " WHERE  "+ disaggregation +
+//          " ),2) deviationFromMean"+
+          " FROM `Data` WHERE form_id IN "+
+          " (SELECT form_id FROM `UnitData`"+
+          " WHERE "+ disaggregation +
+          " ) GROUP BY CONCAT(sender_id, '_' , form_id)) a , "+
+          " (SELECT @curRank :=0, @prevRank := NULL, @incRank := 1) r ORDER BY avgCompletionTime ASC "+ //"avgCompletionTime ORDER BY ABS(deviationFromMean) ASC"+
+          ") s";
+
+
+      query+= " )  " + indicator2Config[j].postfix 
+      query+= " ON User.sender_id_user = "+ indicator2Config[j].postfix + ".sender_id ";
+
+      if(j!=indicator2Config.length-1){
+          query+= " LEFT JOIN "; 
+      }
+
+
+}
 
 
 
 query+= ") indicator_2 "  
 
- query+= " ON indicator_1.scheduleUser_id =  indicator_2.sender_id "+
+ query+= "  ON User.id=  indicator_2.sender_id "+
         " WHERE role_id=5" // FD ==> 5 and TLI => 4
 
 

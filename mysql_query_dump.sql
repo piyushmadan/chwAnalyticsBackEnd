@@ -458,3 +458,123 @@ one.scheduleUser_id AS scheduleUser_id, IF(percentage_one, CONCAT(rank_one, ' ('
 ON indicator_1.scheduleUser_id =  User.id
 WHERE role_id=5
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+===================
+Indicator 2 -- combined 3 for testing
+
+/* Census Form:  Met & Eligible - FDCENSTAT=1 and FDELIGIBLE=1
+PSRF:  Met & Pregnant - FDPSRSTS=1 and FDPSRPREGSTS=1
+PVF: Live birth - FDBNFSTS=4
+
+All other forms among Mets
+ANC1: TLANC1REMSTS=1
+ANC2: TLANC2REMSTS=1
+ANC3: TLANC3REMSTS=1
+ANC4: TLANC4REMSTS=1
+PNC: TLPNCSTS=1
+SES: SES_STATUS=1
+VS29: (any)
+VS43: (any */
+
+SELECT * 
+FROM 
+
+( 
+
+
+SELECT IF(avgCompletionTime>=0,rank,NULL) AS rank_2_1 , avgCompletionTime AS avgCompletionTime_2_1
+, deviationFromMean, s.sender_id AS sender_id 
+FROM (SELECT    r.*, @curRank := IF(@prevRank = avgCompletionTime, @curRank, @incRank) AS rank, 
+@incRank := @incRank + 1, @prevRank := avgCompletionTime,a.* FROM (
+SELECT CONCAT(sender_id, "_" , form_id) AS sender_form, sender_id, form_id, endTime,startTime, ROUND(AVG((endTime-startTime)),2 ) avgCompletionTime, ROUND(STDDEV(endTime-startTime),2) stddevCompletionTime,
+ ROUND(AVG((endTime-startTime)) - (SELECT AVG((endTime-startTime)) FROM `Data` WHERE form_id IN (SELECT form_id FROM `UnitData`
+WHERE  
+(titleVar = "FDELIGIBLE" AND valueVar = 1) OR 
+(titleVar = "FDCENSTAT" AND valueVar = 1) 
+)
+),2) deviationFromMean
+FROM `Data` WHERE form_id IN 
+(SELECT form_id FROM `UnitData`
+WHERE 
+(titleVar = "FDELIGIBLE" AND valueVar = 1) OR 
+(titleVar = "FDCENSTAT" AND valueVar = 1) 
+
+) GROUP BY CONCAT(sender_id, "_" , form_id)) a , 
+(SELECT @curRank :=0, @prevRank := NULL, @incRank := 1) r ORDER BY ABS(deviationFromMean) ASC) s
+
+
+
+) a JOIN 
+( 
+
+
+SELECT IF(avgCompletionTime>=0,rank,NULL) AS rank_2_1 , avgCompletionTime AS avgCompletionTime_2_1
+, deviationFromMean, s.sender_id AS sender_id 
+FROM (SELECT    r.*, @curRank := IF(@prevRank = avgCompletionTime, @curRank, @incRank) AS rank, 
+@incRank := @incRank + 1, @prevRank := avgCompletionTime,a.* FROM (
+SELECT CONCAT(sender_id, "_" , form_id) AS sender_form, sender_id, form_id, endTime,startTime, ROUND(AVG((endTime-startTime)),2 ) avgCompletionTime, ROUND(STDDEV(endTime-startTime),2) stddevCompletionTime,
+ ROUND(AVG((endTime-startTime)) - (SELECT AVG((endTime-startTime)) FROM `Data` WHERE form_id IN (SELECT form_id FROM `UnitData`
+WHERE  
+(titleVar = "FDELIGIBLE" AND valueVar = 1) OR 
+(titleVar = "FDCENSTAT" AND valueVar = 1) 
+)
+),2) deviationFromMean
+FROM `Data` WHERE form_id IN 
+(SELECT form_id FROM `UnitData`
+WHERE 
+(titleVar = "FDELIGIBLE" AND valueVar = 1) OR 
+(titleVar = "FDCENSTAT" AND valueVar = 1) 
+
+) GROUP BY CONCAT(sender_id, "_" , form_id)) a , 
+(SELECT @curRank :=0, @prevRank := NULL, @incRank := 1) r ORDER BY ABS(deviationFromMean) ASC) s
+
+
+
+
+
+) b JOIN
+
+
+
+( 
+
+SELECT IF(avgCompletionTime>=0,rank,NULL) AS rank_2_1 , avgCompletionTime AS avgCompletionTime_2_1
+, deviationFromMean, s.sender_id AS sender_id 
+FROM (SELECT    r.*, @curRank := IF(@prevRank = avgCompletionTime, @curRank, @incRank) AS rank, 
+@incRank := @incRank + 1, @prevRank := avgCompletionTime,a.* FROM (
+SELECT CONCAT(sender_id, "_" , form_id) AS sender_form, sender_id, form_id, endTime,startTime, ROUND(AVG((endTime-startTime)),2 ) avgCompletionTime, ROUND(STDDEV(endTime-startTime),2) stddevCompletionTime,
+ ROUND(AVG((endTime-startTime)) - (SELECT AVG((endTime-startTime)) FROM `Data` WHERE form_id IN (SELECT form_id FROM `UnitData`
+WHERE  
+(titleVar = "FDELIGIBLE" AND valueVar = 1) OR 
+(titleVar = "FDCENSTAT" AND valueVar = 1) 
+)
+),2) deviationFromMean
+FROM `Data` WHERE form_id IN 
+(SELECT form_id FROM `UnitData`
+WHERE 
+(titleVar = "FDELIGIBLE" AND valueVar = 1) OR 
+(titleVar = "FDCENSTAT" AND valueVar = 1) 
+
+) GROUP BY CONCAT(sender_id, "_" , form_id)) a , 
+(SELECT @curRank :=0, @prevRank := NULL, @incRank := 1) r ORDER BY ABS(deviationFromMean) ASC) s
+
+
+) c
+
+WHERE a.sender_id = b.sender_id
+AND a.sender_id = c.sender_id
+
+
