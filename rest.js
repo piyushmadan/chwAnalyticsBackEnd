@@ -275,6 +275,14 @@ var query =  "SELECT  CONCAT(DATE(created_at), '_', titleVar, '_', valueVar ) AS
       var endDate = req.query.endDate || "2017-01-01" ;
 
 
+      console.log("req.query.indicator1:" + req.query.indicator1);
+      console.log("req.query.indicator2:" + req.query.indicator2);
+      console.log("req.query.indicator3:" + req.query.indicator3);
+
+      req.query.indicator1 = parseInt(req.query.indicator1);
+      req.query.indicator2 = parseInt(req.query.indicator2);
+      req.query.indicator3 = parseInt(req.query.indicator3);
+
 
     switch(req.query.aggregator) {
         default:
@@ -291,13 +299,13 @@ var query =  "SELECT  CONCAT(DATE(created_at), '_', titleVar, '_', valueVar ) AS
 
 
 // QUICKER QUERY TO CALCULATE DATEWISE and titleVar 
-var query =  "SELECT  CONCAT(DATE(created_at), '_', titleVar, '_', valueVar ) AS date_titleVar_Value,"+
-              "CONCAT(titleVar, '_', valueVar ) AS titleVar_Value,"+
-              "DATE_FORMAT(created_at, '%Y-%m-%d')  AS DATE, count(*) AS count "+
-              "FROM `UnitData`"+
-              "WHERE titleVar IN " + titleVar+
-              "GROUP BY  CONCAT(DATE(created_at), titleVar, valueVar )"+
-              " HAVING date>=\""+ startDate + "\" and date <=\""+ endDate + "\"" ;
+// var query =  "SELECT  CONCAT(DATE(created_at), '_', titleVar, '_', valueVar ) AS date_titleVar_Value,"+
+//               "CONCAT(titleVar, '_', valueVar ) AS titleVar_Value,"+
+//               "DATE_FORMAT(created_at, '%Y-%m-%d')  AS DATE, count(*) AS count "+
+//               "FROM `UnitData`"+
+//               "WHERE titleVar IN " + titleVar+
+//               "GROUP BY  CONCAT(DATE(created_at), titleVar, valueVar )"+
+//               " HAVING date>=\""+ startDate + "\" and date <=\""+ endDate + "\"" ;
 
 
 var indicatorConfig = new Array({ postfix: "one", values: [1]},
@@ -373,9 +381,50 @@ var indicator2Config = new Array(   { postfix: "census", values: [ { titleVar : 
 var query = "SELECT User.id AS scheduleUser_id , CONCAT(NAME, '-' , displayName) AS name ," +
             "(SELECT (SELECT sectorId FROM Sector AS e WHERE  sectors_id = e.id ) FROM User_Sector AS c WHERE c.User_id= scheduleUser_id) AS sectorId,"+
             "(SELECT (SELECT tlPinId FROM TLPin AS e WHERE  tlPin_id = e.id ) FROM `User` AS c WHERE c.id= scheduleUser_id) AS tlPinId";
-     query +=",indicator_1.*  , indicator_2.* , indicator_3.* , "+
-              " ROUND( (  IF(sum_rank_1, sum_rank_1, 0) + IF(sum_rank_2, sum_rank_2, 0) + IF(sum_rank_3, sum_rank_3, 0) ) / (  IF(sum_rank_1, 1, 0) + IF(sum_rank_2, 1, 0) + IF(sum_rank_3, 1, 0) ) ,2) AS total_commulative ";
-     query+=         " FROM `User` LEFT JOIN (";
+     if(req.query.indicator1) {
+      query +=",indicator_1.*   ";
+     }
+     if(req.query.indicator2) {
+      query +=",indicator_2.*   ";
+     }
+     if(req.query.indicator3) {
+      query +=",indicator_3.*  ";
+     }
+     query+=  ", ROUND( (  " ;
+     if(req.query.indicator1) {
+      query+= "IF(sum_rank_1, sum_rank_1, 0)";
+      if(req.query.indicator2 || req.query.indicator3 ) {
+        query+= " + ";
+      }    
+    }
+     if(req.query.indicator2) {
+      query+= "IF(sum_rank_2, sum_rank_2, 0)";
+      if(req.query.indicator3 ) {
+        query+= " + ";
+      }    
+    }
+     if(req.query.indicator3) {
+      query+= "IF(sum_rank_3, sum_rank_3, 0)";
+    }
+    query+=  " ) / (" ;
+     if(req.query.indicator1) {
+      query+= "IF(sum_rank_1, 1, 0)";
+      if(req.query.indicator2 || req.query.indicator3 ) {
+        query+= " + ";
+      }    
+    }
+     if(req.query.indicator2) {
+      query+= "IF(sum_rank_2, 1, 0)";
+      if(req.query.indicator3 ) {
+        query+= " + ";
+      }    
+    }
+     if(req.query.indicator3) {
+      query+= "IF(sum_rank_3, 1, 0)";
+    }
+    query+=  " ) , 2) AS total_commulative_rank " ;
+
+    query+=  " FROM `User` LEFT JOIN (";
 
 
 var sum_rank_1 = "";
@@ -468,8 +517,9 @@ query+= ") indicator_1 "+
 
 
 
-query+= " LEFT JOIN ("; 
 
+
+if(req.query.indicator2==1) {
 
 // Indicator 2 - start
 
@@ -490,6 +540,7 @@ VS29: (any)
 VS43: (any */
 
 
+query+= " LEFT JOIN ("; 
 
 
 //  query+= " select * ";
@@ -593,6 +644,12 @@ query+= ") indicator_2 "
 
  query+= "  ON User.id=  indicator_2.sender_id ";
 
+} 
+
+if(req.query.indicator3==1) {
+  console.log("req.query.indicator3"+req.query.indicator3)
+
+
 // Indicator 3 Start 
  query+= " LEFT JOIN (SELECT   rank AS sum_rank_3 , avgEndToReceiveTime , sender_id AS indicator_3_sender_id, form_count_for_indicator_3, sd_indicator_3 " +
           " FROM  ( SELECT    r.*, @curRank := IF(@prevRank = avgEndToReceiveTime, @curRank, @incRank) AS rank, @incRank := @incRank + 1,"+ 
@@ -602,9 +659,13 @@ query+= ") indicator_2 "
                   " ( SELECT @curRank :=0, @prevRank := NULL, @incRank := 1) r ORDER BY avgEndToReceiveTime ASC) a)  indicator_3 ";
 
  query+= "  ON User.id= indicator_3_sender_id ";
+
+}
 // Indicator 3 Ends
 
-query+=      " WHERE role_id=5" // FD ==> 5 and TLI => 4
+query+=      " WHERE role_id=5 " // FD ==> 5 and TLI => 4
+
+query+=      "  ORDER BY -total_commulative_rank  DESC ";
 
 
 
