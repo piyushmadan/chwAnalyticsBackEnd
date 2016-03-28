@@ -202,9 +202,6 @@ WHERE a.scheduleUser_id = b.scheduleUser_id
 
 
 
-
-
-
 -- 3 INDICATORS COMBINED
 
 SELECT * 

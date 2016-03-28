@@ -373,7 +373,9 @@ var indicator2Config = new Array(   { postfix: "census", values: [ { titleVar : 
 var query = "SELECT User.id AS scheduleUser_id , CONCAT(NAME, '-' , displayName) AS name ," +
             "(SELECT (SELECT sectorId FROM Sector AS e WHERE  sectors_id = e.id ) FROM User_Sector AS c WHERE c.User_id= scheduleUser_id) AS sectorId,"+
             "(SELECT (SELECT tlPinId FROM TLPin AS e WHERE  tlPin_id = e.id ) FROM `User` AS c WHERE c.id= scheduleUser_id) AS tlPinId";
-     query +=",indicator_1.*  , indicator_2.*  FROM `User` LEFT JOIN (";
+     query +=",indicator_1.*  , indicator_2.* , indicator_3.* , "+
+              " ROUND( (  IF(sum_rank_1, sum_rank_1, 0) + IF(sum_rank_2, sum_rank_2, 0) + IF(sum_rank_3, sum_rank_3, 0) ) / (  IF(sum_rank_1, 1, 0) + IF(sum_rank_2, 1, 0) + IF(sum_rank_3, 1, 0) ) ,2) AS total_commulative ";
+     query+=         " FROM `User` LEFT JOIN (";
 
 
 var sum_rank_1 = "";
@@ -497,15 +499,42 @@ VS43: (any */
 
 for (j=0; j<indicator2Config.length; j++){
 
-query+= " rank_2_" + indicator2Config[j].postfix + " , avgCompletionTime_2_" + indicator2Config[j].postfix + " , deviationFromMean_" + indicator2Config[j].postfix + "  "  ;
+query+= " rank_2_" + indicator2Config[j].postfix + " , avgCompletionTime_2_" + indicator2Config[j].postfix + " , deviationFromMean_" + indicator2Config[j].postfix + " , "  ;
+
+
+query+= " IF(rank_2_" + indicator2Config[j].postfix + " , CONCAT(rank_2_" + indicator2Config[j].postfix + " , '(' , avgCompletionTime_2_" + indicator2Config[j].postfix  + " ,')' ), '') AS rank_value_2_" + indicator2Config[j].postfix  ;
+
 
       if(j!=indicator2Config.length-1){
           query+= " , "; 
       }
-
-
-
 }
+
+var sum_rank_2 = "";
+for(var i=0; i<indicator2Config.length; i++){
+  //TODO: Change this to deviation from Mean when deviation code is fixed
+  sum_rank_2+= "IF(avgCompletionTime_2_"+ indicator2Config[i].postfix + ",rank_2_"+ indicator2Config[i].postfix + ",0)";
+  if(i!=indicator2Config.length-1){
+    sum_rank_2+="+";
+  }
+}
+
+
+
+var sum_rank_used_count_2 = "";
+
+for(var i=0; i<indicator2Config.length; i++){
+  //TODO: Change this to deviation from Mean when deviation code is fixed
+  sum_rank_used_count_2+= " IF(avgCompletionTime_2_"+ indicator2Config[i].postfix +  ",1,0)";
+  if(i!=indicator2Config.length-1){
+    sum_rank_used_count_2+="+";
+  }
+}
+
+
+query+= ", ROUND(("+ sum_rank_2 +")/("+ sum_rank_used_count_2 +"),2) as cummulate_score_2 ,";
+query+=  sum_rank_2 +" as sum_rank_2 ,";
+query+=  sum_rank_used_count_2 +" as sum_rank_used_count_2 ";
 
 
   query+= " from (select id as sender_id_user from `User` where role_id=5) `User` LEFT JOIN ";
@@ -562,8 +591,20 @@ for (j=0; j<indicator2Config.length; j++){
 
 query+= ") indicator_2 "  
 
- query+= "  ON User.id=  indicator_2.sender_id "+
-        " WHERE role_id=5" // FD ==> 5 and TLI => 4
+ query+= "  ON User.id=  indicator_2.sender_id ";
+
+// Indicator 3 Start 
+ query+= " LEFT JOIN (SELECT   rank AS sum_rank_3 , avgEndToReceiveTime , sender_id AS indicator_3_sender_id, form_count_for_indicator_3, sd_indicator_3 " +
+          " FROM  ( SELECT    r.*, @curRank := IF(@prevRank = avgEndToReceiveTime, @curRank, @incRank) AS rank, @incRank := @incRank + 1,"+ 
+                  " @prevRank := avgEndToReceiveTime, a.*"+
+                  " FROM ( SELECT sender_id, endTime, received, ROUND(STDDEV(ABS(received - endTime)),1) AS sd_indicator_3 , ROUND(SUM(ABS(received - endTime))/count(*),1) AS avgEndToReceiveTime , count(*) AS form_count_for_indicator_3 "+
+                          " FROM `Data` GROUP BY sender_id ) a , "+
+                  " ( SELECT @curRank :=0, @prevRank := NULL, @incRank := 1) r ORDER BY avgEndToReceiveTime ASC) a)  indicator_3 ";
+
+ query+= "  ON User.id= indicator_3_sender_id ";
+// Indicator 3 Ends
+
+query+=      " WHERE role_id=5" // FD ==> 5 and TLI => 4
 
 
 
@@ -575,7 +616,10 @@ query+= ") indicator_2 "
 
       var table = ["Schedule"];
       query = mysql.format(query,table); 
-      connection.query(query,function(err,rows){
+      connection.query({
+         sql: query,
+          timeout: 400000 // 400s
+      },function(err,rows){
             if(err) {
               console.log(err);
                res.json({"Error" : true, "Message" : "Error executing MySQL query"});
