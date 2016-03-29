@@ -457,6 +457,7 @@ for(var i=0; i<indicator1Config.length; i++){
     query+="),percentage,NULL) AS percentage_"+ indicator1Config[i].postfix ; 
     
   // jweekId is below...
+  // TODO: Add date filter below
 
     query+=" FROM (SELECT  CONCAT(scheduleUser_id, '_', formToGenerate_id) AS concat_user_formId, Schedule.scheduleUser_id, formToGenerate_id,  ((SUM(STATUS= 'DONE')/ (SUM(STATUS= 'ACTIVE')+ SUM(STATUS= 'DONE')))*100) AS percentage FROM `Schedule` WHERE jweek_id>0 AND jweek_id<1000000 GROUP BY CONCAT(scheduleUser_id, formToGenerate_id)) submission_By_User_and_form)submission_By_User_and_form_and_percentage GROUP BY scheduleUser_id) submission_By_User_and_form_and_percentage_ranking) a , (SELECT @curRank :=0, @prevRank := NULL, @incRank := 1) r ORDER BY percentage DESC) s"+
               ") " + indicator1Config[i].postfix
@@ -675,7 +676,97 @@ query+=      "  ORDER BY -total_commulative_rank  DESC ";
 
 
 
-  }
+ // }
+
+  router.get("/CHWScoringIndicatorStatistics",function(req,res){
+
+      console.log(req.query)
+
+      var startDate = req.query.startDate || "2015-01-01" ;
+
+      var endDate = req.query.endDate || "2017-01-01" ;
+
+
+      console.log("req.query.indicator1:" + req.query.indicator1);
+      console.log("req.query.indicator2:" + req.query.indicator2);
+      console.log("req.query.indicator3:" + req.query.indicator3);
+
+      req.query.indicator1 = parseInt(req.query.indicator1);
+      req.query.indicator2 = parseInt(req.query.indicator2);
+      req.query.indicator3 = parseInt(req.query.indicator3);    
+
+     var indicator1Config = indicatorConfig.indicator1Config;
+     var indicator2Config = indicatorConfig.indicator2Config;
+
+     console.log(indicator1Config);
+     console.log(indicator2Config);
+
+     var query = "";
+
+//indicator 1 
+     for(var i=0; i< indicator1Config.length ; i++ ){
+       query+= "  ( select 1 as indicatorType,'"+ indicator1Config[i].postfix +"' as indicatorAggregator, ROUND(AVG(percentage),2) as avg, ROUND(STDDEV(percentage),2) as sd "+
+                " FROM ( select ((SUM(STATUS= 'DONE')/ (SUM(STATUS= 'ACTIVE')+ SUM(STATUS= 'DONE')))*100) AS percentage FROM `Schedule` " +
+                " WHERE jweek_id>0 AND jweek_id<1000000" + 
+                " AND formToGenerate_id in (" + indicator1Config[i].values + " ) "+
+                " GROUP BY CONCAT(scheduleUser_id, formToGenerate_id) ) " + indicator1Config[i].postfix + 
+                " ) ";
+      if(i!=indicator1Config.length-1){
+          query+= " UNION ";
+      }
+     }
+
+// indicator 2 
+
+
+    for (j=0; j<indicator2Config.length; j++){
+      var disaggregation = "";
+
+      for (k=0; k<indicator2Config[j].values.length; k++){
+          disaggregation+= " (titleVar = '"+ indicator2Config[j].values[k].titleVar + "' AND valueVar = "+ indicator2Config[j].values[k].valueVar + ") ";
+          if(k!=indicator2Config[j].values.length-1) {
+              disaggregation+= " OR ";        
+          }
+        }
+
+      query+= " UNION ( " +
+          "  SELECT 2 as indicatorType, '"+ indicator2Config[j].postfix+"' as indicatorAggregator , "+
+          "  ROUND(AVG((endTime-startTime)),2) avg, "+
+          "  ROUND(STDDEV(endTime-startTime),2) sd "+
+          "  FROM `Data` WHERE form_id IN "+
+          "  (SELECT form_id FROM `UnitData`"+
+          "  WHERE "+ disaggregation +
+          "  ) ) ";
+      }
+
+
+// indicator 3 
+      query+= " UNION ( select 3 as indicatorType, 'avgEndToReceiveTime' as indicatorAggregator , ROUND(AVG(avgEndToReceiveTime),2) as avg, ROUND(STDDEV(avgEndToReceiveTime),2) as sd "+
+                " FROM ( SELECT sender_id, ROUND(STDDEV(ABS(received - endTime)),1) AS sd_indicator_3 , ROUND(SUM(ABS(received - endTime))/count(*),1) AS avgEndToReceiveTime , count(*) AS form_count_for_indicator_3 "+
+                        " FROM `Data` GROUP BY sender_id ) a ) ";
+
+
+     console.log(query);
+
+      connection.query({
+         sql: query,
+      },function(err,rows){
+            if(err) {
+              console.log(err);
+               res.json({"Error" : true, "Message" : "Error executing MySQL query"});
+            } else {
+                res.json({"Error" : false, 
+                          "Message" : "Success", 
+                          "ver": 0.1, 
+                          "result" : rows, 
+                          "startDate" : startDate,
+                          "endDate" : endDate                 
+                        });
+            }
+          }); 
+  });
+}
+
   //);
 
     // router.get("/users/:user_id",function(req,res){
