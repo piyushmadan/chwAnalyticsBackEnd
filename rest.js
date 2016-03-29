@@ -1,4 +1,6 @@
 var mysql = require("mysql");
+var indicatorConfig = require("./indicatorConfig.js");
+
 function REST_ROUTER(router,connection,md5) {
     var self = this;
     self.handleRoutes(router,connection,md5);
@@ -261,8 +263,8 @@ var query =  "SELECT  CONCAT(DATE(created_at), '_', titleVar, '_', valueVar ) AS
 //http://stackoverflow.com/questions/19590865/from-an-array-of-objects-extract-value-of-a-property-as-array
 //Calculate rank of values extracted from object
 //http://stackoverflow.com/questions/14834571/ranking-array-elements
-  // Indicator 1 - GET 
-  router.get("/CHWScoringIndicator1",function(req,res){
+  // Indicator 1,2,3 - GET 
+  router.get("/CHWScoringIndicator",function(req,res){
 
       console.log(req.query)
 
@@ -308,41 +310,11 @@ var query =  "SELECT  CONCAT(DATE(created_at), '_', titleVar, '_', valueVar ) AS
 //               " HAVING date>=\""+ startDate + "\" and date <=\""+ endDate + "\"" ;
 
 
-var indicatorConfig = new Array({ postfix: "one", values: [1]},
-                        { postfix: "six", values: [6]},
-                        { postfix: "tnine", values: [29]},
-                        { postfix: "thirty", values: [30]},
-                        { postfix: "thrity1", values: [31]},
-                        { postfix: "thrity2", values: [32]},
-                        { postfix: "anc", values: [35,36,37,38]},
-                        { postfix: "vs29", values: [40,42,44]},
-                        { postfix: "vs43", values: [41,43,45]}
-                        )
+ var indicator1Config = indicatorConfig.indicator1Config;
+ var indicator2Config = indicatorConfig.indicator2Config;
 
-
-// var indicator2Config = new Array(   { postfix: "census", values: [ { titleVar : "FDCENSTAT", valueVar: 1},
-//                                                                 { titleVar : "FDELIGIBLE", valueVar: 1}] },
-//                                     { postfix: "psrf", values: [ { titleVar : "FDPSRSTS", valueVar: 1},
-//                                                                 { titleVar : "FDPSRPREGSTS", valueVar: 1}]}
-//                        );
-
-
-
-var indicator2Config = new Array(   { postfix: "census", values: [ { titleVar : "FDCENSTAT", valueVar: 1},
-                                                                { titleVar : "FDELIGIBLE", valueVar: 1}] },
-                                    { postfix: "psrf", values: [ { titleVar : "FDPSRSTS", valueVar: 1},
-                                                                { titleVar : "FDPSRPREGSTS", valueVar: 1}]},
-                                 { postfix: "pvf", values: [ { titleVar : "FDBNFSTS", valueVar: 1} ]},
-                                 { postfix: "rest", values: [ { titleVar : "FDPSRSTS", valueVar: 1},
-                                                                { titleVar : "TLANC1REMSTS", valueVar: 1},
-                                                                { titleVar : "TLANC2REMSTS", valueVar: 1},
-                                                                { titleVar : "TLANC3REMSTS", valueVar: 1},
-                                                                { titleVar : "TLANC4REMSTS", valueVar: 1},
-                                                                { titleVar : "TLPNCSTS", valueVar: 1},
-                                                                { titleVar : "SES_STATUS", valueVar: 1},
-                                                               ]}
-                       );
-
+ console.log(indicator1Config);
+ console.log(indicator2Config);
 
 
 // SELECT
@@ -429,10 +401,10 @@ var query = "SELECT User.id AS scheduleUser_id , CONCAT(NAME, '-' , displayName)
 
 var sum_rank_1 = "";
 
-for(var i=0; i<indicatorConfig.length; i++){
+for(var i=0; i<indicator1Config.length; i++){
 
-  sum_rank_1+= "IF(percentage_"+ indicatorConfig[i].postfix +  ",rank_"+ indicatorConfig[i].postfix + ",0)";
-  if(i!=indicatorConfig.length-1){
+  sum_rank_1+= "IF(percentage_"+ indicator1Config[i].postfix +  ",rank_"+ indicator1Config[i].postfix + ",0)";
+  if(i!=indicator1Config.length-1){
     sum_rank_1+="+";
   }
 
@@ -441,10 +413,10 @@ for(var i=0; i<indicatorConfig.length; i++){
 
 var sum_rank_used_count_1 = "";
 
-for(var i=0; i<indicatorConfig.length; i++){
+for(var i=0; i<indicator1Config.length; i++){
 
-  sum_rank_used_count_1+= "IF(percentage_"+ indicatorConfig[i].postfix +  ",1,0)";
-  if(i!=indicatorConfig.length-1){
+  sum_rank_used_count_1+= "IF(percentage_"+ indicator1Config[i].postfix +  ",1,0)";
+  if(i!=indicator1Config.length-1){
     sum_rank_used_count_1+="+";
   }
 
@@ -454,42 +426,42 @@ for(var i=0; i<indicatorConfig.length; i++){
 query+= "select ROUND(("+ sum_rank_1 +")/("+ sum_rank_used_count_1 +"),2) as cummulate_score_1 ,";
 query+=  sum_rank_1 +" as sum_rank_1 ,";
 query+=  sum_rank_used_count_1 +" as sum_rank_used_count_1, ";
-query+= indicatorConfig[0].postfix+ ".scheduleUser_id AS scheduleUser_id"
+query+= indicator1Config[0].postfix+ ".scheduleUser_id AS scheduleUser_id"
 
 //(SELECT (SELECT sectorId from Sector as e WHERE  sector_id = e.id ) FROM User_Sector AS c WHERE c.User_id= scheduleUser_id) AS sectorId,"; 
-//   query+=  "(SELECT CONCAT(name, '-' , displayName) FROM User AS c WHERE c.id= "+ indicatorConfig[0].postfix +".scheduleUser_id) as name, ";
-//   query+=  "(SELECT (SELECT sectorId from Sector as e WHERE  sectors_id = e.id ) FROM User_Sector AS c WHERE c.User_id= "+ indicatorConfig[0].postfix +".scheduleUser_id) as sectorId, ";
-//   query+=  "(SELECT (SELECT tlPinId from TLPin as e WHERE  tlPin_id = e.id ) FROM User AS c WHERE c.id= "+ indicatorConfig[0].postfix +".scheduleUser_id) as tlPinId ";
+//   query+=  "(SELECT CONCAT(name, '-' , displayName) FROM User AS c WHERE c.id= "+ indicator1Config[0].postfix +".scheduleUser_id) as name, ";
+//   query+=  "(SELECT (SELECT sectorId from Sector as e WHERE  sectors_id = e.id ) FROM User_Sector AS c WHERE c.User_id= "+ indicator1Config[0].postfix +".scheduleUser_id) as sectorId, ";
+//   query+=  "(SELECT (SELECT tlPinId from TLPin as e WHERE  tlPin_id = e.id ) FROM User AS c WHERE c.id= "+ indicator1Config[0].postfix +".scheduleUser_id) as tlPinId ";
 
 
 
-for(var i=0; i<indicatorConfig.length; i++){
+for(var i=0; i<indicator1Config.length; i++){
 
-query+= ", IF(percentage_"+ indicatorConfig[i].postfix + ", CONCAT(rank_" + indicatorConfig[i].postfix + ", ' (' , percentage_" + indicatorConfig[i].postfix + ", '%)' )   , NULL) as rank_percentage_"+ indicatorConfig[i].postfix
+query+= ", IF(percentage_"+ indicator1Config[i].postfix + ", CONCAT(rank_" + indicator1Config[i].postfix + ", ' (' , percentage_" + indicator1Config[i].postfix + ", '%)' )   , NULL) as rank_percentage_"+ indicator1Config[i].postfix
 
 }
 
 query+= " from ";
 
 
-for(var i=0; i<indicatorConfig.length; i++){
-  query+= "( SELECT IF(percentage>=0,rank,NULL) AS rank_" + indicatorConfig[i].postfix +  " , percentage AS percentage_" + indicatorConfig[i].postfix  + ",  "+
+for(var i=0; i<indicator1Config.length; i++){
+  query+= "( SELECT IF(percentage>=0,rank,NULL) AS rank_" + indicator1Config[i].postfix +  " , percentage AS percentage_" + indicator1Config[i].postfix  + ",  "+
   "s.scheduleUser_id AS scheduleUser_id  FROM (SELECT    r.*, @curRank := IF(@prevRank = percentage, @curRank, @incRank) AS rank, @incRank := @incRank + 1, @prevRank := percentage,a.* FROM (SELECT * ,"+ 
-  "sum_percentage_" + indicatorConfig[i].postfix +  " AS percentage "+
+  "sum_percentage_" + indicator1Config[i].postfix +  " AS percentage "+
   "FROM(SELECT scheduleUser_id, "+
-  "sum(percentage_" + indicatorConfig[i].postfix +  ") AS sum_percentage_" + indicatorConfig[i].postfix +  " "+
+  "sum(percentage_" + indicator1Config[i].postfix +  ") AS sum_percentage_" + indicator1Config[i].postfix +  " "+
   "FROM (SELECT scheduleUser_id, IF(`formToGenerate_id` IN (";
 
-    query+=indicatorConfig[i].values
+    query+=indicator1Config[i].values
 
-    query+="),percentage,NULL) AS percentage_"+ indicatorConfig[i].postfix ; 
+    query+="),percentage,NULL) AS percentage_"+ indicator1Config[i].postfix ; 
     
   // jweekId is below...
 
     query+=" FROM (SELECT  CONCAT(scheduleUser_id, '_', formToGenerate_id) AS concat_user_formId, Schedule.scheduleUser_id, formToGenerate_id,  ((SUM(STATUS= 'DONE')/ (SUM(STATUS= 'ACTIVE')+ SUM(STATUS= 'DONE')))*100) AS percentage FROM `Schedule` WHERE jweek_id>0 AND jweek_id<1000000 GROUP BY CONCAT(scheduleUser_id, formToGenerate_id)) submission_By_User_and_form)submission_By_User_and_form_and_percentage GROUP BY scheduleUser_id) submission_By_User_and_form_and_percentage_ranking) a , (SELECT @curRank :=0, @prevRank := NULL, @incRank := 1) r ORDER BY percentage DESC) s"+
-              ") " + indicatorConfig[i].postfix
+              ") " + indicator1Config[i].postfix
 
-  if(i!=indicatorConfig.length-1){
+  if(i!=indicator1Config.length-1){
     query+=" JOIN "
   }
 
@@ -500,10 +472,10 @@ for(var i=0; i<indicatorConfig.length; i++){
 query += " WHERE "
 
 
-for(var i=1; i<indicatorConfig.length; i++){
-  query+= indicatorConfig[0].postfix + ".scheduleUser_id =" +  indicatorConfig[i].postfix + ".scheduleUser_id" 
+for(var i=1; i<indicator1Config.length; i++){
+  query+= indicator1Config[0].postfix + ".scheduleUser_id =" +  indicator1Config[i].postfix + ".scheduleUser_id" 
 
-if(i!=indicatorConfig.length-1) {
+if(i!=indicator1Config.length-1) {
   query+= " AND "
 }
 
@@ -703,7 +675,8 @@ query+=      "  ORDER BY -total_commulative_rank  DESC ";
 
 
 
-  }//);
+  }
+  //);
 
     // router.get("/users/:user_id",function(req,res){
     //     var query = "SELECT * FROM ?? WHERE ??=?";
