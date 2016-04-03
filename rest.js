@@ -526,7 +526,7 @@ for (j=0; j<indicator2Config.length; j++){
 query+= " rank_2_" + indicator2Config[j].postfix + " , avgCompletionTime_2_" + indicator2Config[j].postfix + " , deviationFromMean_" + indicator2Config[j].postfix + " , "  ;
 
 
-query+= " IF(rank_2_" + indicator2Config[j].postfix + " , CONCAT(rank_2_" + indicator2Config[j].postfix + " , '(' , avgCompletionTime_2_" + indicator2Config[j].postfix  + " ,')' ), '') AS rank_value_2_" + indicator2Config[j].postfix  ;
+query+= " IF(rank_2_" + indicator2Config[j].postfix + " , CONCAT(rank_2_" + indicator2Config[j].postfix + " , ' (' , avgCompletionTime_2_" + indicator2Config[j].postfix  + " ,')' ), '') AS rank_value_2_" + indicator2Config[j].postfix  ;
 
 
       if(j!=indicator2Config.length-1){
