@@ -8,6 +8,14 @@ function REST_ROUTER(router,connection,md5) {
 
 REST_ROUTER.prototype.handleRoutes= function(router,connection,md5) {
 
+   router.get("/login",function(req,res){
+      res.statusCode = 200;
+      res.json({"Error" : false, 
+                "Message" : "Success", 
+                "ver": 0.1       
+              });
+   });
+
    router.get("/formStatusReport",function(req,res){
 
       console.log(req.query)

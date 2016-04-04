@@ -1,5 +1,6 @@
 var mysql = require('mysql');
 var config = require("./config.js");
+var auth = require('basic-auth');
 
 var connection = mysql.createConnection(config.mysqlPool);
 var del = connection._protocol._delegateError;
@@ -17,8 +18,6 @@ var bodyParser = require("body-parser");
 var md5 = require('MD5');
 var rest = require("./rest.js");
 var app = express();
-
-
 
 function REST() {
     var self = this;
@@ -47,9 +46,24 @@ REST.prototype.configureExpress = function(connection) {
     var router = express.Router();
 
     app.use(function(req, res, next) {
-        res.header("Access-Control-Allow-Origin", "*");
-        res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-        next();
+
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        res.setHeader("Access-Control-Allow-Headers", "authorization, Origin, X-Requested-With, Content-Type, Accept");
+        res.setHeader('Access-Control-Allow-Methods', "GET, POST, PUT, OPTIONS");
+        res.setHeader("Access-Control-Max-Age", "1728000");
+        res.setHeader("Content-Type", 'application/json');
+        res.setHeader("Access-Control-Allow-Credentials", "true");
+        res.setHeader('WWW-Authenticate', 'Basic realm="example"');
+        res.setHeader('Set-Cookie', ['type=ninja', 'language=javascript']);
+
+        var credentials = auth(req);
+
+        if (!(req.method=="OPTIONS") && (!credentials || credentials.name !== config.testUser.user || credentials.pass !== config.testUser.pass)) {
+            res.statusCode = 401;
+            res.end('Access denied');
+        } else {
+            next();
+       }         
     });
 
     app.use('/', router);
