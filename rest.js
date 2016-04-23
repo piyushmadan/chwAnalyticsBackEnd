@@ -30,7 +30,7 @@ REST_ROUTER.prototype.handleRoutes= function(router,connection,md5) {
 
     switch(req.query.groupBy || "sector_id") {
       case "jweek_id":
-          group_by_attributeMapping = " (SELECT CONCAT(jweek_id, ' (' , SUBSTR(fromDate,1,10) , ' to ' , SUBSTR(toDate,1,10) , ')' ) FROM JWeek AS c WHERE c.id= jweek_id)"
+          group_by_attributeMapping = " (SELECT CONCAT(jweekId, ' (' , SUBSTR(fromDate,1,10) , ' to ' , SUBSTR(toDate,1,10) , ')' ) FROM JWeek AS c WHERE c.id= jweek_id)"
           break;
 
       case "role_id":
@@ -40,7 +40,7 @@ REST_ROUTER.prototype.handleRoutes= function(router,connection,md5) {
       case "scheduleUser_id":
           group_by_attributeMapping = " (SELECT (SELECT sectorId from Sector as e WHERE  sector_id = e.id ) FROM User_Sector AS c WHERE c.User_id= scheduleUser_id) AS sectorId,"+ 
                                       " (SELECT (SELECT tlPinId from TLPin as e WHERE  tlPin_id = e.id ) FROM User AS c WHERE c.id= scheduleUser_id) AS tlPinId ,"+
-                                      " (SELECT CONCAT(name, '-' , displayName) FROM User AS c WHERE c.id= scheduleUser_id)"
+                                      " (SELECT name FROM User AS c WHERE c.id= scheduleUser_id)"
           break;
 
         case "sector_id":
@@ -102,7 +102,7 @@ REST_ROUTER.prototype.handleRoutes= function(router,connection,md5) {
 
       var group_by_attribute = req.query.groupBy || "jweek_id";
 
-      var group_by_attributeMapping = " (SELECT CONCAT(jweek_id, ' (' , SUBSTR(fromDate,1,10) , ' to ' , SUBSTR(toDate,1,10) , ')' ) FROM JWeek AS c WHERE c.id= jweek_id)"
+      var group_by_attributeMapping = " (SELECT CONCAT(jweekId, ' (' , SUBSTR(fromDate,1,10) , ' to ' , SUBSTR(toDate,1,10) , ')' ) FROM JWeek AS c WHERE c.id= jweek_id)"
 
 
       var startDate = req.query.startDate || "2015-01-01" ;
