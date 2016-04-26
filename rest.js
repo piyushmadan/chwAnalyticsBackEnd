@@ -143,7 +143,68 @@ REST_ROUTER.prototype.handleRoutes= function(router,connection,md5) {
       });
 
 
+
+
    router.get("/FormUnitDataCount",function(req,res){
+
+      console.log(req.query)
+
+      var group_by_attribute = req.query.groupBy || " YEAR(created_at), MONTH(created_at), DATE(created_at)";
+
+      var group_by_attributeMapping = " DATE_FORMAT(created_at, '%Y-%m-%d') "; //" DATE(created_at)"; //" (SELECT CONCAT(jweek_id, ' (' , SUBSTR(fromDate,1,10) , ' to ' , SUBSTR(toDate,1,10) , ')' ) FROM JWeek AS c WHERE c.id= jweek_id)"
+
+      var startDate = req.query.startDate || "2015-01-01" ;
+
+      var endDate = req.query.endDate || "2017-01-01" ;
+
+    switch(req.query.aggregator) {
+        default:
+          var disaggregation =  "SUM(titleVar = 'FDCENCONSENT' AND valueVar=1) AS FDCENCONSENT_1,"+
+                                "SUM(titleVar = 'FDELIGIBLE' AND valueVar=1) AS FDELIGIBLE_1,"+    
+                                "SUM(titleVar = 'FDBNFSTS' AND valueVar=0) AS FDBNFSTS_0,"+    
+                                "SUM(titleVar = 'FDPREGSTS' AND valueVar=1) AS FDPREGSTS_1,"+    
+                                "SUM(titleVar = 'FDPSRCONSENT' AND valueVar=1) AS FDPSRCONSENT_1,"+    
+                                "SUM(titleVar = 'FDBNFLB') AS FDBNFLB";
+    }
+
+    var titleVar = "('FDCENCONSENT', 'FDELIGIBLE','FDBNFSTS', 'FDPSRCONSENT', 'FDPREGSTS', 'FDBNFLB' )";
+
+
+// QUICKER QUERY TO CALCULATE DATEWISE and titleVar 
+var query =  "SELECT  CONCAT(DATE(created_at), '_', titleVar, '_', valueVar ) AS date_titleVar_Value,"+
+              "CONCAT(titleVar, '_', valueVar ) AS titleVar_Value,"+
+              "DATE_FORMAT(created_at, '%Y-%m-%d')  AS DATE, count(*) AS count "+
+              "FROM `UnitData`"+
+              "WHERE titleVar IN " + titleVar+
+              "GROUP BY  CONCAT(DATE(created_at), titleVar, valueVar )"+
+              " HAVING date>=\""+ startDate + "\" and date <=\""+ endDate + "\"" ;
+
+
+
+  //    var query = "SELECT "+ group_by_attributeMapping + " as date , " + 
+   //               disaggregation +  " FROM `UnitData` " +
+    //                " GROUP BY " +  group_by_attribute + " HAVING date>=\""+ startDate + "\" and date <=\""+ endDate + "\"" ;
+
+      console.log(query);
+
+      var table = ["Schedule"];
+      query = mysql.format(query,table); 
+      connection.query(query,function(err,rows){
+            if(err) {
+              console.log(err);
+               res.json({"Error" : true, "Message" : "Error executing MySQL query"});
+            } else {
+                res.json({"Error" : false, 
+                          "Message" : "Success", 
+                          "ver": 0.1, 
+                          "result" : rows, 
+                 
+                        });
+            }
+          }); 
+      });
+
+   router.get("/WeeklyReportData",function(req,res){
 
       console.log(req.query)
 
@@ -217,30 +278,32 @@ REST_ROUTER.prototype.handleRoutes= function(router,connection,md5) {
 
 
 
+    // switch(req.query.aggregator) {
+    //     default:
+    //       var disaggregation =  "SUM(titleVar = 'FDCENSTAT' AND valueVar=1) AS FDCENSTAT_1,"+    
+    //                             "SUM(titleVar = 'FDCENSTAT' AND valueVar=2) AS FDCENSTAT_2,"+    
+    //                             "SUM(titleVar = 'FDCENSTAT' AND valueVar=6) AS FDCENSTAT_6,"+    
+    //                             "SUM(titleVar = 'FDCENSTAT' AND valueVar=7) AS FDCENSTAT_7,"+    
+    //                             "SUM(titleVar = 'FDCENSTAT' AND valueVar=8) AS FDCENSTAT_8,"+    
+    //                             "SUM(titleVar = 'FDCENSTAT' AND valueVar=999) AS FDCENSTAT_999,"+     
+    //                             "SUM(titleVar = 'FDCENCONSENT' AND valueVar=1) AS FDCENCONSENT_1,"+  //*****Pending (Scheduled - COUNT(CENSUS Submissions))   
+    //                             "SUM(titleVar = 'FDCENCONSENT' AND valueVar=1) AS FDCENCONSENT_1,"+                                 
+    //                             "SUM(titleVar = 'FDCENCONSENT' AND valueVar=6) AS FDCENCONSENT_6";    
 
 
-    switch(req.query.aggregator) {
-        default:
-          var disaggregation =  "SUM(titleVar = 'FDCENCONSENT' AND valueVar=1) AS FDCENCONSENT_1,"+
-                                "SUM(titleVar = 'FDELIGIBLE' AND valueVar=1) AS FDELIGIBLE_1,"+    
-                                "SUM(titleVar = 'FDBNFSTS' AND valueVar=0) AS FDBNFSTS_0,"+    
-                                "SUM(titleVar = 'FDPREGSTS' AND valueVar=1) AS FDPREGSTS_1,"+    
-                                "SUM(titleVar = 'FDPSRCONSENT' AND valueVar=1) AS FDPSRCONSENT_1,"+    
-                                "SUM(titleVar = 'FDBNFLB') AS FDBNFLB";   
-                               // "((SUM(STATUS= 'DONE')/ (SUM(STATUS= 'ACTIVE')+ SUM(STATUS= 'DONE')))*100) AS percentage"; 
-    }
+    //                            // "((SUM(STATUS= 'DONE')/ (SUM(STATUS= 'ACTIVE')+ SUM(STATUS= 'DONE')))*100) AS percentage"; 
+    // }
 
-    var titleVar = "('FDCENCONSENT', 'FDELIGIBLE','FDBNFSTS', 'FDPSRCONSENT', 'FDPREGSTS', 'FDBNFLB' )";
+    var titleVar = "('FDCENSTAT', 'FDCENCONSENT','FDPSRSTS','FDPSRCONSENT','FDPSRPREGSTS','FDBNFSTS','FDBNFCHLDVITSTS','FDBNFWOMVITSTS','TLANCxREMSTS','FDPSRSTS','FDPSRCONSENT','FDPSRPREGSTS')";
 
 
 // QUICKER QUERY TO CALCULATE DATEWISE and titleVar 
-var query =  "SELECT  CONCAT(DATE(created_at), '_', titleVar, '_', valueVar ) AS date_titleVar_Value,"+
-              "CONCAT(titleVar, '_', valueVar ) AS titleVar_Value,"+
-              "DATE_FORMAT(created_at, '%Y-%m-%d')  AS DATE, count(*) AS count "+
-              "FROM `UnitData`"+
-              "WHERE titleVar IN " + titleVar+
-              "GROUP BY  CONCAT(DATE(created_at), titleVar, valueVar )"+
-              " HAVING date>=\""+ startDate + "\" and date <=\""+ endDate + "\"" ;
+var query =  "SELECT " + //startDate + " as startDate, " + endDate + " as endDate "+
+              " CONCAT(titleVar, '_', valueVar) as titleVar,"+
+              " count(*) as count"+
+              " FROM `UnitData` "+
+              " WHERE titleVar IN " + titleVar + " AND created_at>=\""+ startDate + "\" and created_at <=\""+ endDate + "\""+
+              " GROUP BY  CONCAT(titleVar, '_', valueVar) ";              
 
 
 
@@ -260,12 +323,15 @@ var query =  "SELECT  CONCAT(DATE(created_at), '_', titleVar, '_', valueVar ) AS
                 res.json({"Error" : false, 
                           "Message" : "Success", 
                           "ver": 0.1, 
-                          "result" : rows, 
+                          "result" : rows,
+                          "startDate": startDate,
+                          "endDate": endDate 
                  
                         });
             }
           }); 
       });
+
 
 //Get array of values from an objects
 //http://stackoverflow.com/questions/19590865/from-an-array-of-objects-extract-value-of-a-property-as-array
