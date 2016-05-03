@@ -839,6 +839,31 @@ query+=      "  ORDER BY -total_commulative_rank  DESC ";
             }
           }); 
   });
+
+
+   router.get("/mauza",function(req,res){
+
+      console.log(req.query)
+
+      var query = "SELECT * FROM `Mauza` ";      
+
+      console.log(query);
+
+      var table = ["Mauza"];
+      query = mysql.format(query,table); 
+      connection.query(query,function(err,rows){
+            if(err) {
+              console.log(err);
+               res.json({"Error" : true, "Message" : "Error executing MySQL query"});
+            } else {
+                res.json({"Error" : false, 
+                          "Message" : "Success", 
+                          "ver": 0.1, 
+                          "result" : rows               
+                        });
+            }
+          }); 
+      });
 }
 
   //);
