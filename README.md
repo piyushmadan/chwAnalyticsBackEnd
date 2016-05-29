@@ -3,7 +3,7 @@ Health Worker Analytics Back-end is developed to visualize and generate report f
 
 Installation 
 -------------
-- Install `npm` and `node` 
+- Install `npm` and `node`  (developed on npm 1.4.3 and node v0.10.26 )
 - Clone the repository 
 ```shell
  git clone https://github.com/piyushmadan/chwAnalyticsBackEnd 
@@ -17,3 +17,9 @@ Installation
 ` nohup nodejs server.js &`
 - To stop nohup,  `ps -ef | grep nohup ` to know the process id
 - Kill the process `kill -9 <process_id>`
+
+
+Issue in production
+-------------------
+- MySQL server conneciton is not stable, so I quit the mysql connection pool (because of fatal enqueue) and forever nodejs module restart the nodejs app on termination. 
+For complete forever documentation, visit: https://github.com/foreverjs/forever

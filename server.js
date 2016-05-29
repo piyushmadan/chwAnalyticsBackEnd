@@ -29,6 +29,14 @@ REST.prototype.connectMysql = function() {
     var self = this;
     var pool = mysql.createPool(config.mysqlPool);
     pool.getConnection(function(err, connection) {
+        connection.on('error', function(err) {
+            console.error(new Date(), 'MySQL error', err.code);        
+            express.close();
+            process.exit(1);
+            //Forever Module will restart the server.
+            //https://github.com/foreverjs/forever
+        });
+
         if (err) {
             self.stop(err);
         } else {
