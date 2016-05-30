@@ -179,6 +179,17 @@ var query =  "SELECT  CONCAT(DATE(created_at), '_', titleVar, '_', valueVar ) AS
               "GROUP BY  CONCAT(DATE(created_at), titleVar, valueVar )"+
               " HAVING date>=\""+ startDate + "\" and date <=\""+ endDate + "\"" ;
 
+if(req.query.weekly){
+  query =  "SELECT  CONCAT(YEAR(created_at),'-', MONTH(created_at), '_', titleVar, '_', valueVar ) AS date_titleVar_Value,"+
+              "CONCAT(titleVar, '_', valueVar ) AS titleVar_Value,"+
+              "DATE_FORMAT(created_at, '%Y-%m')  AS DATE, count(*) AS count "+
+              "FROM `UnitData`"+
+              "WHERE titleVar IN " + titleVar+
+              "GROUP BY  CONCAT(YEAR(created_at), MONTH(created_at) , titleVar, valueVar)"+
+              " HAVING date>=\""+ startDate + "\" and date <=\""+ endDate + "\"" ;
+} 
+
+
 
 
   //    var query = "SELECT "+ group_by_attributeMapping + " as date , " + 
